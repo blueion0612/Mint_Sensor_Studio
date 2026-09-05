@@ -291,15 +291,13 @@ class DenoisePage(Page):
         self.method = QtWidgets.QComboBox()
         self.method.addItems(self.METHODS)
         self.method.currentIndexChanged.connect(self._changed)
-        # two boxes on one row have to fit beside each other at 1024 px, whatever
-        # the font: size the boxes by a character count, not by their longest item,
-        # or a wider font (DejaVu Sans on Linux) pushes the method box over the
-        # channel label
-        for box, chars in ((self.method, 12), (self.pick.box, 11)):
+        # Two boxes on one row have to fit beside each other at 1024 px, whatever the
+        # font. They are sized by a character count and nothing else: a pixel
+        # minimum on top of it made the row wider than its card under DejaVu Sans,
+        # Linux's default, and the method box landed on the channel label.
+        for box, chars in ((self.method, 14), (self.pick.box, 12)):
             box.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
             box.setMinimumContentsLength(chars)
-        self.method.setStyleSheet("QComboBox { min-width: 118px; }")
-        self.pick.box.setStyleSheet("QComboBox { min-width: 110px; }")
         self.win = Slider("window", 10.0, 500.0, 100.0, 10.0, "ms", 0, width=200)
         self.win.changed.connect(self._changed)
         self.order = Slider("polynomial order", 1, 5, 3, 1, "", 0, width=140)
