@@ -292,12 +292,18 @@ class DenoisePage(Page):
         self.method.addItems(self.METHODS)
         self.method.currentIndexChanged.connect(self._changed)
         # Two boxes on one row have to fit beside each other at 1024 px, whatever the
-        # font. They are sized by a character count and nothing else: a pixel
-        # minimum on top of it made the row wider than its card under DejaVu Sans,
-        # Linux's default, and the method box landed on the channel label.
-        for box, chars in ((self.method, 14), (self.pick.box, 12)):
+        # font. The theme's 150 px minimum is too wide for that, so each box asks for
+        # 76 px, grows with the row up to 220 px, and no more. With the earlier
+        # 118 px the row still outgrew its card under DejaVu Sans, Linux's default,
+        # and Qt drew the method box over the channel label.
+        for box in (self.method, self.pick.box):
+            box.setStyleSheet("QComboBox { min-width: 76px; }")     # the theme says 150
             box.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
-            box.setMinimumContentsLength(chars)
+            box.setMinimumContentsLength(6)
+            box.setMaximumWidth(220)
+            pol = box.sizePolicy()
+            pol.setHorizontalPolicy(QtWidgets.QSizePolicy.Expanding)
+            box.setSizePolicy(pol)
         self.win = Slider("window", 10.0, 500.0, 100.0, 10.0, "ms", 0, width=200)
         self.win.changed.connect(self._changed)
         self.order = Slider("polynomial order", 1, 5, 3, 1, "", 0, width=140)
@@ -325,9 +331,13 @@ class DenoisePage(Page):
         sl.addStretch(1)
         side.setFixedWidth(330)
 
-        top, _ = card(self.tplot, row(label("method", "Caption"), self.method,
-                                      label("channel", "Caption"), self.pick.box, None),
-                      row(self.win, self.order, None))
+        captions = [label("method", "Caption"), label("channel", "Caption")]
+        for cap in captions:                       # the boxes take the spare width, not the captions
+            cap.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
+        controls = row(captions[0], self.method, captions[1], self.pick.box, None)
+        controls.setStretchFactor(self.method, 3)   # spare width goes to the boxes first,
+        controls.setStretchFactor(self.pick.box, 3)  # then to the space after them
+        top, _ = card(self.tplot, controls, row(self.win, self.order, None))
         bottom, _ = card(self.rplot)
         col = QtWidgets.QVBoxLayout()
         col.setSpacing(theme.GAP)
