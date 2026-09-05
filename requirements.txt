@@ -14,5 +14,9 @@ pyqtgraph
 
 # optional. Sensor Studio says what is missing and runs without them.
 bleak
-imufusion
 scipy
+# imufusion has no pre-built package for Windows on ARM or for Python 3.15,
+# and pip would try to compile it there and fail. So it is left out on those:
+# the numpy attitude filter in studio/core.py is used instead, and --check
+# says so.
+imufusion; platform_machine != "ARM64" and python_version < "3.15"

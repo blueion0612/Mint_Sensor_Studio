@@ -27,6 +27,23 @@ OPTIONAL = (("serial", "pyserial", "the USB cable. Without it: the radio, the si
                                "studio/dsp.py, which gives the same answer"))
 
 
+def no_wheel(package):
+    """
+    Is this optional package one PyPI has no pre-built wheel for on this
+    machine? pip would then try to compile it, fail for want of a compiler,
+    and say so in a way that does not look like this is the reason.
+
+    imufusion ships wheels for x86-64 Windows, both kinds of Mac and Linux,
+    for Python 3.9 to 3.14. Elsewhere the numpy filter in studio/core.py,
+    which is required to agree with it, is used.
+    """
+    import platform
+    if package == "imufusion":
+        on_windows_arm = sys.platform == "win32" and platform.machine().upper() == "ARM64"
+        return on_windows_arm or sys.version_info[:2] >= (3, 15)
+    return False
+
+
 def report():
     """Say what is installed and what is not, then stop."""
     import importlib
@@ -74,8 +91,13 @@ def report():
                 importlib.import_module(module)
                 mark = "[ ok ]"
             except ImportError:
-                mark = "[    ]" if group == "optional" else "[FAIL]"
-                missing.append((package, group))
+                if group == "optional" and no_wheel(package):
+                    # Not offered below: pip would try to compile it and fail.
+                    mark = "[ -- ]"
+                    why += ". No pre-built package for this machine; not needed"
+                else:
+                    mark = "[    ]" if group == "optional" else "[FAIL]"
+                    missing.append((package, group))
             print("    %s %-12s %s" % (mark, package, why))
         print()
     if missing:

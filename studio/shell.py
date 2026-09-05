@@ -823,10 +823,44 @@ class Page(QtWidgets.QWidget):
         return {}
 
 
+class Cramped(QtWidgets.QScrollArea):
+    """
+    A scroll area whose page is exactly as big as the viewport or the
+    layout's floor, whichever is larger.
+
+    QScrollArea's own resizing follows the page's size hint, and a
+    word-wrapped label that was measured before the window had its width
+    leaves that hint a screen too tall: the page then scrolls a thousand
+    pixels for a panel that is a hundred away. Setting the size here, on
+    every resize, makes the scroll range the floor minus the viewport and
+    nothing else.
+    """
+
+    def __init__(self, page, floor):
+        super().__init__()
+        self.setObjectName("Cramped")
+        self.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.floor = floor
+        self.setWidget(page)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.fit()
+
+    def fit(self):
+        view = self.viewport().size()
+        self.widget().resize(max(view.width(), self.floor.width()),
+                             max(view.height(), self.floor.height()))
+
+
 # ---------------------------------------------------------------
 # the window
 # ---------------------------------------------------------------
 class Studio(QtWidgets.QMainWindow):
+    # A rectangle standing in for the screen, so that a check can see what a
+    # small laptop sees without having one.
+    SCREEN_OVERRIDE = None
+
     def __init__(self, entries=None):
         super().__init__()
         self.setWindowTitle("MINT Sensor Studio")
@@ -858,10 +892,49 @@ class Studio(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self._frame)
         self.timer.start(self.pace.interval)
 
+    def _free(self):
+        """The part of the screen a window may use, or None."""
+        if self.SCREEN_OVERRIDE is not None:
+            return self.SCREEN_OVERRIDE
+        screen = QtGui.QGuiApplication.primaryScreen()
+        return screen.availableGeometry() if screen else None
+
+    def _short_screen(self):
+        """
+        The layout is designed down to MIN_W x MIN_H. A screen with less room
+        than that (a 1366 x 768 laptop at 125 % scaling has 614 logical rows,
+        minus the taskbar) would push the bottom panel off the screen. Returns
+        the room such a screen has, or None when the screen is big enough.
+        """
+        free = self._free()
+        if free is None:
+            return None
+        room_w, room_h = free.width() - 40, free.height() - 60
+        if room_w >= theme.MIN_W and room_h >= theme.MIN_H:
+            return None
+        return room_w, room_h
+
+    def _cramped_body(self, column, room):
+        """
+        On a short screen the page and the panel under it go into a scroll
+        area, the rail stays put beside it, and the window shrinks to the
+        screen: everything is still there, the panel is a scroll away.
+        """
+        scroll = Cramped(column, QtCore.QSize(theme.MIN_W - theme.RAIL_W, theme.MIN_H))
+        centre = QtWidgets.QWidget()
+        lay = QtWidgets.QHBoxLayout(centre)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        lay.addWidget(self.rail)
+        lay.addWidget(scroll, 1)
+        self.setCentralWidget(centre)
+        self.setMinimumSize(theme.SMALL_W, theme.SMALL_H)
+        self.resize(max(theme.SMALL_W, min(theme.WANT_W, room[0])),
+                    max(theme.SMALL_H, min(theme.WANT_H, room[1])))
+
     def _size_to_screen(self):
         """Open large, but never larger than the screen it has been given."""
-        screen = QtGui.QGuiApplication.primaryScreen()
-        free = screen.availableGeometry() if screen else None
+        free = self._free()
         w, h = theme.WANT_W, theme.WANT_H
         if free is not None:
             w = max(theme.MIN_W, min(w, free.width() - 40))
@@ -996,20 +1069,30 @@ class Studio(QtWidgets.QMainWindow):
 
         self.explain = Explain()
 
-        upper = QtWidgets.QWidget()
-        up = QtWidgets.QHBoxLayout(upper)
-        up.setContentsMargins(0, 0, 0, 0)
-        up.setSpacing(0)
-        up.addWidget(self.rail)
-        up.addWidget(self.stack, 1)
+        room = self._short_screen()
+        if room is not None:
+            column = QtWidgets.QWidget()
+            col = QtWidgets.QVBoxLayout(column)
+            col.setContentsMargins(0, 0, 0, 0)
+            col.setSpacing(0)
+            col.addWidget(self.stack, 1)
+            col.addWidget(self.explain)
+            self._cramped_body(column, room)
+        else:
+            upper = QtWidgets.QWidget()
+            up = QtWidgets.QHBoxLayout(upper)
+            up.setContentsMargins(0, 0, 0, 0)
+            up.setSpacing(0)
+            up.addWidget(self.rail)
+            up.addWidget(self.stack, 1)
 
-        centre = QtWidgets.QWidget()
-        lay = QtWidgets.QVBoxLayout(centre)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(0)
-        lay.addWidget(upper, 1)
-        lay.addWidget(self.explain)
-        self.setCentralWidget(centre)
+            centre = QtWidgets.QWidget()
+            lay = QtWidgets.QVBoxLayout(centre)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.setSpacing(0)
+            lay.addWidget(upper, 1)
+            lay.addWidget(self.explain)
+            self.setCentralWidget(centre)
         self.goto(0)
         # After the window is up, not before: the cost being paid here is font
         # substitution, and Qt only goes looking for a face when it actually

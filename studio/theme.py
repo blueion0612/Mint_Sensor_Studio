@@ -93,6 +93,7 @@ EXPLAIN_H = 210
 # 1366 x 768 laptop with its taskbar. Everything below is a minimum, not a
 # size: the panels grow with the window and never shrink past these.
 MIN_W, MIN_H = 1000, 620
+SMALL_W, SMALL_H = 640, 400      # what the window may shrink to on a screen with less room
 WANT_W, WANT_H = 1440, 900
 SIDE_W = 330                # the readout column on a page
 

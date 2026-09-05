@@ -21,11 +21,12 @@ dependencies = [
 [project.optional-dependencies]
 # the radio
 bluetooth = ["bleak"]
-# the reference attitude filter; the numpy one in studio/core.py is used without it
-fusion = ["imufusion"]
+# the reference attitude filter; the numpy one in studio/core.py is used without it.
+# No wheel exists for Windows on ARM or Python 3.15, so it is skipped there
+fusion = ["imufusion; platform_machine != 'ARM64' and python_version < '3.15'"]
 # faster filters; the biquad cascade in studio/dsp.py gives the same answer without it
 fast = ["scipy"]
-all = ["bleak", "imufusion", "scipy"]
+all = ["bleak", "imufusion; platform_machine != 'ARM64' and python_version < '3.15'", "scipy"]
 
 [project.urls]
 Repository = "https://github.com/blueion0612/Mint_Sensor_Studio"

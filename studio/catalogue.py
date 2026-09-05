@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Yuhyeon Lee
 # SPDX-License-Identifier: MIT
 """
-catalog.py
+catalogue.py
 Every page, in the groups the rail shows them in.
 
 One group per sensor, holding its live view and the functions that only make

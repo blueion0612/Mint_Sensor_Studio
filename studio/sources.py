@@ -30,6 +30,7 @@ import csv
 import math
 import os
 import struct
+import sys
 import threading
 import time
 from collections import deque
@@ -209,6 +210,19 @@ class SerialSource(Source):
             self.ser = serial.Serial(port, BAUD, timeout=0.2)
         except serial.SerialException as e:
             text = str(e).lower()
+            if (sys.platform.startswith("linux")
+                    and any(w in text for w in ("permission", "denied"))):
+                # On Linux "permission denied" is the account, not another
+                # program: serial ports belong to a group it is not in yet.
+                raise RuntimeError(
+                    "%s: permission denied. Add yourself to the group that owns "
+                    "serial ports, then log out and back in:   "
+                    "sudo usermod -aG dialout $USER" % port)
+            if "busy" in text:
+                # macOS and Linux say "Resource busy" for a port another
+                # program holds; Windows says the access was denied (below).
+                raise RuntimeError("%s is open in another program. Close the "
+                                   "Arduino IDE's Serial Monitor and try again." % port)
             # The last one is Korean ("denied"): a Windows in Korean says the
             # access was denied in Korean, and the English words are then
             # absent. Written as escapes so that the source stays ASCII.

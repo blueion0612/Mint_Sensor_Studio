@@ -95,7 +95,7 @@ cannot disagree.
 
 ## Quick start
 
-Python 3.10 or newer, on Windows, macOS 13 or newer, or Linux.
+Python 3.10 to 3.14, on Windows, macOS 13 or newer, or Linux.
 
 ```bash
 git clone https://github.com/blueion0612/Mint_Sensor_Studio
@@ -180,10 +180,12 @@ math check can ask what no bench test can: not whether an estimate drifts, but b
 much it is wrong. It also requires the two attitude backends and the two filter
 engines to agree, so that the program behaves the same whatever happens to be
 installed. The window check opens the real window on each simulated sensor, visits
-every page, works every control, and fails on an exception, a slow frame, or two
-pieces of text drawn over each other; then it records a few seconds, plays them back
-through the Recording source, and opens the dark palette in the smallest window the
-layout is designed for. CI runs all three, the window check off screen.
+every page, works every control, and fails on an exception, a slow frame measured
+twice, or two pieces of text drawn over each other; then it records a few seconds,
+plays them back through the Recording source, opens the dark palette in the smallest
+window the layout is designed for, and opens the window on a screen shorter than
+that layout to see that it scrolls to the bottom panel. CI runs all three, the window
+check off screen.
 
 ## Requirements
 
@@ -197,10 +199,16 @@ layout is designed for. CI runs all three, the window check off screen.
 | imufusion | the reference attitude filter | the numpy one in `studio/core.py` is used, and must agree |
 | scipy | faster filters | the biquad cascade in `studio/dsp.py` is used, and gives the same answer |
 
-Every package ships a wheel for Windows x86-64, Windows on ARM, Intel Macs and Apple
-silicon; nothing is compiled. macOS 13 is Qt's floor: on macOS 12 install
-`PySide6==6.9.3` first, on macOS 11 `PySide6==6.7.3`. The window draws with QPainter,
-not OpenGL, measures its own frame cost, and spaces frames out on a slow machine.
+Every package ships a wheel for Windows x86-64, Intel Macs and Apple silicon;
+nothing is compiled. imufusion has no wheel for Windows on ARM or for Python 3.15,
+so `requirements.txt` and the `fusion` extra leave it out there and the numpy
+attitude filter is used; `--check` says so. macOS 13 is Qt's floor: on macOS 12
+install `PySide6==6.9.3` first, on macOS 11 `PySide6==6.7.3`. On Linux, Qt wants the
+xcb libraries (`sudo apt install libxcb-cursor0 libgl1` on Ubuntu or Debian) and the
+serial port wants your account in the `dialout` group. The window draws with
+QPainter, not OpenGL, measures its own frame cost, and spaces frames out on a slow
+machine. A screen with less room than the layout's 1024 x 640 gets a window that
+scrolls, down to 640 x 400.
 
 ## Limitations
 
@@ -213,6 +221,9 @@ not OpenGL, measures its own frame cost, and spaces frames out on a slow machine
   calibrated against a reference oximeter.
 - **A simulated sensor has the faults its sliders offer.** A real board has others.
 - macOS 13 is the floor for the current Qt; older Macs need the pinned PySide6 above.
+- **Linux has not been run with a real board.** The wheels exist and the checks pass
+  off screen; the serial permission and library notes above come from reading, not
+  from a session.
 
 ## Related
 
