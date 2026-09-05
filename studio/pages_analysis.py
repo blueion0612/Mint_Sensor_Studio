@@ -291,7 +291,13 @@ class DenoisePage(Page):
         self.method = QtWidgets.QComboBox()
         self.method.addItems(self.METHODS)
         self.method.currentIndexChanged.connect(self._changed)
-        # two boxes on one row have to fit beside each other at 1024 px
+        # two boxes on one row have to fit beside each other at 1024 px, whatever
+        # the font: size the boxes by a character count, not by their longest item,
+        # or a wider font (DejaVu Sans on Linux) pushes the method box over the
+        # channel label
+        for box, chars in ((self.method, 12), (self.pick.box, 11)):
+            box.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
+            box.setMinimumContentsLength(chars)
         self.method.setStyleSheet("QComboBox { min-width: 118px; }")
         self.pick.box.setStyleSheet("QComboBox { min-width: 110px; }")
         self.win = Slider("window", 10.0, 500.0, 100.0, 10.0, "ms", 0, width=200)

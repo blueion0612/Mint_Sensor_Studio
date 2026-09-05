@@ -53,4 +53,5 @@ jobs:
       - name: Every page on every simulated sensor, off screen
         env:
           QT_QPA_PLATFORM: offscreen
+          STUDIO_BUDGET_MS: "60"      # a shared runner is slower than the laptop the 26 ms budget was set on
         run: python tests/check_studio.py

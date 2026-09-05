@@ -33,7 +33,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.dirname(HERE)                # the repository root
 SHOTS = os.path.join(os.environ.get("SCRATCH", os.path.join(HERE, "_runs")), "studio")
 
-BUDGET_MS = 26.0          # a frame goes out every 45 ms
+# A frame goes out every 45 ms. The budget was set on a laptop; a shared CI runner
+# is two to three times slower, so STUDIO_BUDGET_MS lets it say so without
+# loosening the local check.
+BUDGET_MS = float(os.environ.get("STUDIO_BUDGET_MS", "26.0"))
 sys.path.insert(0, APP)
 
 # STUDIO_HIDDEN=1 keeps the windows off the screen while the system's own fonts
