@@ -61,7 +61,7 @@ def report():
     warnings = []
     if _sys.version_info[:2] < (3, 10):
         warnings.append("Python %s is too old for the current PySide6. Make the "
-                        "course environment: conda create -n imu python=3.12"
+                        "course environment: conda create -n mobi311 python=3.12"
                         % platform.python_version())
 
     # The current Qt is built for macOS 13 and newer. On an older Mac pip finds
