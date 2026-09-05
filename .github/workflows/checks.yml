@@ -1,0 +1,52 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  estimators:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: pip install -e ".[all]" pytest
+      - name: requirements.txt against pyproject.toml
+        run: python -m pytest -q
+      - name: Every estimator against the simulators' truth, on both backends
+        run: python tests/check_studio_math.py
+      - name: Every entry point resolves
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python sensor_studio.py --check
+          python -m studio --check
+          sensor-studio --check
+
+  window:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Libraries Qt needs even off screen
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libegl1 libgl1 libxkbcommon0 libdbus-1-3 libfontconfig1 libglib2.0-0
+      - run: pip install -e ".[all]"
+      - name: Every page on every simulated sensor, off screen
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python tests/check_studio.py

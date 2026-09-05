@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mint-sensor-studio"
+description = "One window for IMU, EMG and PPG sensors and the signal processing taught on them, with simulators whose truth is known"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Yuhyeon Lee" }]
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = [
+  "numpy",
+  "PySide6",
+  "pyqtgraph",
+  "pyserial",
+]
+
+[project.optional-dependencies]
+# the radio
+bluetooth = ["bleak"]
+# the reference attitude filter; the numpy one in studio/core.py is used without it
+fusion = ["imufusion"]
+# faster filters; the biquad cascade in studio/dsp.py gives the same answer without it
+fast = ["scipy"]
+all = ["bleak", "imufusion", "scipy"]
+
+[project.urls]
+Repository = "https://github.com/blueion0612/Mint_Sensor_Studio"
+Portfolio = "https://blueion0612.github.io"
+
+[project.scripts]
+sensor-studio = "studio.app:main"
+
+[tool.setuptools]
+packages = ["studio"]
+
+[tool.setuptools.dynamic]
+version = { attr = "studio.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

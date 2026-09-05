@@ -1,0 +1,18 @@
+# Sensor Studio
+#
+#     pip install -r requirements.txt
+#
+numpy
+pyserial
+
+# and, for the window itself.
+# PySide6 is the only thing here that needs a recent macOS: the current
+# release is built for macOS 13 and newer. On macOS 12 install
+# PySide6==6.9.3 first, on macOS 11 PySide6==6.7.3, then run this file.
+PySide6
+pyqtgraph
+
+# optional. Sensor Studio says what is missing and runs without them.
+bleak
+imufusion
+scipy
