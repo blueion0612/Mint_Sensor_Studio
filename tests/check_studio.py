@@ -121,6 +121,11 @@ def main():
             fails.append("%s explains but links to nothing" % page.title)
         return mean, worst, notes
 
+    # The standard windows are laid out for a real screen. Qt's off-screen platform
+    # reports 800 x 600, which would switch the window into its small-screen
+    # scrolling mode and test that instead; the short-screen check below does so
+    # on purpose.
+    Studio.SCREEN_OVERRIDE = QtCore.QRect(0, 0, 1920, 1080)
     win = Studio()
     win.resize(1440, 900)
     win.quiet_errors = True          # collect tracebacks, never a modal box
@@ -231,7 +236,9 @@ def main():
     print()
     print("  the dark palette in a 1024 x 640 window")
     theme.apply(app, dark=True)
+    Studio.SCREEN_OVERRIDE = QtCore.QRect(0, 0, 1920, 1080)
     dark = Studio()
+    Studio.SCREEN_OVERRIDE = None
     dark.quiet_errors = True
     dark.resize(1024, 640)
     if HIDDEN:

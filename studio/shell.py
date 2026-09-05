@@ -93,6 +93,32 @@ def row(*widgets, gap=theme.GAP):
     return lay
 
 
+def flexible(box, floor=76, cap=220):
+    """
+    A combo box that fits beside others on one row under any font.
+
+    The theme gives every box a 150 px minimum, which is right for a box on its
+    own and too wide for two on a row at 1024 px once the font is DejaVu Sans,
+    Linux's default: Qt then draws one box over the next label. This one asks
+    for `floor` px, takes the row's spare width first, and stops at `cap`.
+    """
+    box.setStyleSheet("QComboBox { min-width: %dpx; }" % floor)
+    box.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToMinimumContentsLengthWithIcon)
+    box.setMinimumContentsLength(6)
+    box.setMaximumWidth(cap)
+    pol = box.sizePolicy()
+    pol.setHorizontalPolicy(QtWidgets.QSizePolicy.Expanding)
+    box.setSizePolicy(pol)
+    return box
+
+
+def caption(text):
+    """A row caption that keeps its text width, so spare width goes to the boxes."""
+    w = label(text, "Caption")
+    w.setSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
+    return w
+
+
 def clear_layout(lay):
     """Take everything out of a layout and let Qt delete it."""
     while lay.count():

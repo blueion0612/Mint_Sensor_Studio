@@ -20,7 +20,7 @@ import pyqtgraph as pg
 from PySide6 import QtCore, QtWidgets
 
 from . import core, dsp, theme
-from .shell import Every, Page, Picker, Slider, YRange, card, decimate, draw, label, row
+from .shell import Every, Page, Picker, Slider, YRange, caption, card, decimate, draw, flexible, label, row
 
 WINDOW = 8.5           # seconds the time plots look back over
 
@@ -189,11 +189,13 @@ class SpectrumPage(Page):
         self.fx = None
         self.slow = Every(6)
 
-        top, _ = card(self.tplot,
-                      row(label("channel", "Caption"), self.pick.box,
-                          label("window", "Caption"), self.window,
-                          self.span, self.logy, None),
-                      self.readout)
+        flexible(self.pick.box)
+        flexible(self.window)
+        controls = row(caption("channel"), self.pick.box, caption("window"), self.window,
+                       self.span, self.logy, None)
+        controls.setStretchFactor(self.pick.box, 3)
+        controls.setStretchFactor(self.window, 3)
+        top, _ = card(self.tplot, controls, self.readout)
         bottom, _ = card(self.fplot)
         col = QtWidgets.QVBoxLayout()
         col.setSpacing(theme.GAP)
