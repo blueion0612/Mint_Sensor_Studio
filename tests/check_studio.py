@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Lee Yuhyeon
+# Copyright (c) 2026 Yuhyeon Lee
 # SPDX-License-Identifier: MIT
 """
 check_studio.py
@@ -22,9 +22,6 @@ The overlap check is the interesting one. Qt layouts cannot overlap by
 construction, but a fixed-size panel whose text is too long, or a plot title
 written over a legend, still can. So it walks the real widget tree and compares
 the on-screen rectangles of everything that draws text.
-
-Set STUDIO_HIDDEN=1 to keep the windows off the screen on a machine with a
-display; set QT_QPA_PLATFORM=offscreen on a runner with none.
 """
 
 import os
@@ -36,16 +33,34 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.dirname(HERE)                # the repository root
 SHOTS = os.path.join(os.environ.get("SCRATCH", os.path.join(HERE, "_runs")), "studio")
 
-# A frame goes out every 45 ms. The budget was set on a laptop; a shared CI runner
-# is two to three times slower, so STUDIO_BUDGET_MS lets it say so without
-# loosening the local check.
+# A frame goes out every 45 ms. The budget was set on a laptop; a shared CI
+# runner is two to three times slower, so STUDIO_BUDGET_MS lets it say so
+# without loosening the local check.
 BUDGET_MS = float(os.environ.get("STUDIO_BUDGET_MS", "26.0"))
 sys.path.insert(0, APP)
 
-# STUDIO_HIDDEN=1 keeps the windows off the screen while the system's own fonts
-# still draw. Off-screen Qt on Windows has no font database and renders every
-# glyph as a box, which changes the text widths this check measures.
+# STUDIO_HIDDEN=1 keeps the windows off the screen while the system's own
+# fonts still draw. Off-screen Qt on Windows has no font database and renders
+# every glyph as a box, which changes the text widths this check measures.
 HIDDEN = os.environ.get("STUDIO_HIDDEN") == "1"
+# The standard windows are laid out for a real screen. Qt's off-screen
+# platform reports 800 x 600, which would switch the window into its
+# small-screen scrolling mode and test that instead; the short-screen check
+# does so on purpose, with its own rectangle.
+BIG_SCREEN = (0, 0, 1920, 1080)
+
+
+def open_window(Studio, QtCore, screen=BIG_SCREEN):
+    """A Studio laid out for `screen`, hidden if asked, with the override reset."""
+    Studio.SCREEN_OVERRIDE = QtCore.QRect(*screen) if screen else None
+    try:
+        win = Studio()
+    finally:
+        Studio.SCREEN_OVERRIDE = None
+    win.quiet_errors = True
+    if HIDDEN:
+        win.setAttribute(QtCore.Qt.WA_DontShowOnScreen, True)
+    return win
 
 # the three simulated sensors, and what they are told to do
 SOURCES = [
@@ -66,6 +81,7 @@ def main():
     from PySide6 import QtWidgets, QtCore
     from studio import theme, sources, catalogue
     from studio.shell import Studio, RECORDINGS
+    Studio.AUTO_CONNECT = False      # a board on the bench must not take a test from the simulator
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
     theme.apply(app)
@@ -121,16 +137,8 @@ def main():
             fails.append("%s explains but links to nothing" % page.title)
         return mean, worst, notes
 
-    # The standard windows are laid out for a real screen. Qt's off-screen platform
-    # reports 800 x 600, which would switch the window into its small-screen
-    # scrolling mode and test that instead; the short-screen check below does so
-    # on purpose.
-    Studio.SCREEN_OVERRIDE = QtCore.QRect(0, 0, 1920, 1080)
-    win = Studio()
+    win = open_window(Studio, QtCore)   # collects tracebacks, never a modal box
     win.resize(1440, 900)
-    win.quiet_errors = True          # collect tracebacks, never a modal box
-    if HIDDEN:
-        win.setAttribute(QtCore.Qt.WA_DontShowOnScreen, True)
     win.show()
     print("  groups: " + ", ".join("%s (%d)" % (g.name, len(g.pages)) for g in catalogue.GROUPS))
 
@@ -236,13 +244,8 @@ def main():
     print()
     print("  the dark palette in a 1024 x 640 window")
     theme.apply(app, dark=True)
-    Studio.SCREEN_OVERRIDE = QtCore.QRect(0, 0, 1920, 1080)
-    dark = Studio()
-    Studio.SCREEN_OVERRIDE = None
-    dark.quiet_errors = True
+    dark = open_window(Studio, QtCore)
     dark.resize(1024, 640)
-    if HIDDEN:
-        dark.setAttribute(QtCore.Qt.WA_DontShowOnScreen, True)
     dark.show()
     small = 0
     for kind, kw in SOURCES:
@@ -277,14 +280,7 @@ def main():
     # window has to fit that and the bottom panel has to stay reachable.
     print()
     print("  a 1093 x 574 screen (a 1366 x 768 laptop at 125 % scaling, taskbar off)")
-    Studio.SCREEN_OVERRIDE = QtCore.QRect(0, 0, 1093, 574)
-    try:
-        tiny = Studio()
-    finally:
-        Studio.SCREEN_OVERRIDE = None
-    tiny.quiet_errors = True
-    if HIDDEN:
-        tiny.setAttribute(QtCore.Qt.WA_DontShowOnScreen, True)
+    tiny = open_window(Studio, QtCore, (0, 0, 1093, 574))
     tiny.show()
     app.processEvents()
     if tiny.width() > 1093 or tiny.height() > 574:
@@ -337,6 +333,45 @@ def main():
         tiny.grab().save(os.path.join(SHOTS, "short_screen.png"))
         tiny._close()
     tiny.close()
+
+    # --- nothing connected: every page is offered, and the theory pages, which
+    # read no sensor, have to work in full ---
+    print()
+    print("  nothing connected")
+    bare = open_window(Studio, QtCore)
+    bare.resize(1440, 900)
+    bare.show()
+    app.processEvents()
+    theory_titles = [p.title for g, _k, p in bare.entries if g.key == "theory"]
+    if len(theory_titles) < 5:
+        fails.append("the rail has %d theory pages, expected five" % len(theory_titles))
+    for i, page in enumerate(bare.pages):
+        if not (bare._items[i].flags() & QtCore.Qt.ItemIsEnabled):
+            fails.append("%s is greyed with nothing connected; every page should be offered"
+                         % page.title)
+            continue
+        bare.goto(i)
+        pump(0.3)
+        work = exercise(page, app, pump) if page.title in theory_titles else ""
+        for _ in range(4):
+            bare._frame()
+            app.processEvents()
+        if bare.last_error is not None:
+            fails.append("%s with nothing connected raised: %s"
+                         % (page.title, bare.last_error.strip().splitlines()[-1]))
+            bare.last_error = None
+            bare.timer.start(bare.pace.interval)
+        if page.title in theory_titles:
+            bad = overlaps(page)
+            if bad:
+                fails.append("%s with nothing connected: %s" % (page.title, "; ".join(bad[:2])))
+            info = page.explain()
+            if not info or not (info.get("source") or info.get("sources")):
+                fails.append("%s explains nothing, or links to nothing" % page.title)
+            print("  %-18s %s" % (page.title, work))
+            bare.grab().save(os.path.join(SHOTS, "theory_%s.png"
+                                          % page.title.lower().replace(" ", "_")))
+    bare.close()
 
     print()
     if fails:

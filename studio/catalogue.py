@@ -6,7 +6,8 @@ Every page, in the groups the rail shows them in.
 
 One group per sensor, holding its live view and the functions that only make
 sense for it, and one group of functions that work on whichever signal is
-connected. This is the file to edit to add a page or move one.
+connected; and one of demonstrations on synthetic signals, which need no
+sensor at all. This is the file to edit to add a page or move one.
 """
 
 from __future__ import annotations
@@ -38,6 +39,11 @@ PAGES = {
     "filters":     ("pages_transform", "FilterPage"),
     "denoise":     ("pages_analysis",  "DenoisePage"),
     "separation":  ("pages_analysis",  "SeparationPage"),
+    "theorem":     ("pages_theory",    "TheoremPage"),
+    "aliasing":    ("pages_theory",    "AliasPage"),
+    "quantise":    ("pages_theory",    "QuantisePage"),
+    "synthesis":   ("pages_theory",    "SynthesisPage"),
+    "leakage":     ("pages_theory",    "LeakagePage"),
 }
 
 GROUPS = [
@@ -51,6 +57,9 @@ GROUPS = [
           [("sampling", None), ("convolution", None), ("periodicity", None),
            ("spectrum", None), ("spectrogram", None), ("filters", None),
            ("denoise", None), ("separation", None)]),
+    Group("theory", "Signal theory", "Demonstrations on synthetic signals; no sensor needed",
+          [("theorem", None), ("aliasing", None), ("quantise", None),
+           ("synthesis", None), ("leakage", None)]),
 ]
 
 

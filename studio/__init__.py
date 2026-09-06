@@ -2,4 +2,4 @@
 # SPDX-License-Identifier: MIT
 """MINT Sensor Studio - a teaching instrument for sensors and their signals."""
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"

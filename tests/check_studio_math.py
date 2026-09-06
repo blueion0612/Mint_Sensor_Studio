@@ -34,7 +34,7 @@ import numpy as np
 APP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, APP)
 
-from studio import analysis, bio, core, dsp, sources                # noqa: E402
+from studio import analysis, bio, core, dsp, sources, theory        # noqa: E402
 
 HZ = 100.0
 RUN = 30.0
@@ -298,7 +298,7 @@ def ppg():
                         if len(beats) and len(truth) else [9.0])
                 want("%s: worst distance from a true peak" % tag, max(near), 0.0, 0.12, "s")
             else:
-                # Movement puts a 6 Hz artifact into the signal every nine
+                # Movement puts a 6 Hz artefact into the signal every nine
                 # seconds. A simple detector is expected to stumble on it, not
                 # to fall over: the count and the rate stay within a few per cent.
                 want("%s: heart rate within 15 %%" % tag, abs(h["mean"] - bpm) / bpm,
@@ -404,12 +404,65 @@ def analyses():
     want("PCA's first share is the larger", float(share[0]), 0.5, 1.0, "")
 
 
+def theory_pages():
+    """The Signal theory pages' arithmetic, against what the textbooks say."""
+    head("Signal theory: sampling, aliasing, quantisation, synthesis, leakage")
+    # sampling theorem: a 3 Hz sine from 10 Hz samples comes back; from 4 Hz it does not
+    t = np.linspace(0.5, 1.5, 400)
+    x = np.cos(2 * np.pi * 3.0 * t)
+    # a finite record leaves the tails of the sincs out: under 1 % with 8 s of samples
+    for fs, lo, hi, text in ((10.0, 0.0, 0.01, "f_s = 10 Hz rebuilds a 3 Hz sine, error"),
+                             (4.0, 0.3, 2.0, "f_s = 4 Hz cannot: error")):
+        tn = np.arange(-3.0, 5.0, 1.0 / fs)
+        y = theory.reconstruct(tn, np.cos(2 * np.pi * 3.0 * tn), t, fs)
+        want(text, float(np.sqrt(np.mean((y - x) ** 2))), lo, hi, "")
+    # aliasing: the textbook cases
+    for f, fs, a in ((45.0, 50.0, 5.0), (60.0, 100.0, 40.0), (100.0, 100.0, 0.0), (49.0, 100.0, 49.0)):
+        want("%g Hz sampled at %g appears as" % (f, fs), float(theory.alias(f, fs)), a - 1e-9,
+             a + 1e-9, "Hz")
+    tn = np.arange(0, 1, 1 / 50.0)
+    want("45 Hz and its alias agree at every 50 Hz sample",
+         float(np.abs(np.cos(2 * np.pi * 45 * tn) - np.cos(2 * np.pi * theory.signed_alias(45, 50) * tn)).max()),
+         0.0, 1e-9, "")
+    # quantisation: the 6.02 N + 1.76 dB rule for a full-scale sine
+    tt = np.linspace(0, 2, 20000)
+    s = 0.999 * np.sin(2 * np.pi * tt)
+    for bits in (4, 8, 12):
+        q, step = theory.quantise(s, bits)
+        want("%d bits: SNR against 6.02 N + 1.76" % bits, theory.snr_db(s, q - s),
+             theory.quantisation_snr(bits) - 1.5, theory.quantisation_snr(bits) + 1.5, "dB")
+        want("%d bits: error RMS against step / sqrt(12)" % bits,
+             float(np.sqrt(np.mean((q - s) ** 2))) / (step / np.sqrt(12)), 0.9, 1.1, "x")
+    # synthesis: the triangle converges fast, the square overshoots by Gibbs' 9 %
+    tt = np.linspace(0, 2, 4000)
+    tri = theory.partial_sum("triangle", 1.0, tt, 9)
+    want("triangle, 9 harmonics: error", float(np.sqrt(np.mean((tri - theory.waveform("triangle", 1.0, tt)) ** 2))),
+         0.0, 0.01, "")
+    sq = theory.partial_sum("square", 1.0, tt, 99)
+    want("square, 99 harmonics: overshoot, of the jump", float((np.abs(sq).max() - 1.0) / 2.0),
+         0.08, 0.10, "")
+    want("sawtooth, 60 harmonics: error", float(np.sqrt(np.mean((theory.partial_sum("sawtooth", 1.0, tt, 60)
+                                                                 - theory.waveform("sawtooth", 1.0, tt)) ** 2))),
+         0.0, 0.12, "")
+    # leakage: on a bin nothing leaks; between bins the rectangle leaks and Hann holds it
+    i = np.arange(100)
+    for f, kind, lo, hi, text in ((10.0, "rectangular", -200.0, -60.0, "10.0 Hz on a bin, rectangular: everything else below"),
+                                  (10.5, "rectangular", -25.0, -5.0, "10.5 Hz between bins, rectangular: the third bin away"),
+                                  (10.5, "Hann", -200.0, -31.0, "10.5 Hz between bins, Hann: the fifth bin away")):
+        freq, db = theory.spectrum_db(np.cos(2 * np.pi * f * i / 100.0), 100.0, theory.window(kind, 100))
+        peak = int(np.argmax(db))
+        far = 3 if kind == "rectangular" else 5
+        others = np.delete(db, np.arange(max(0, peak - far + 1), peak + far))
+        want(text, float(others.max()), lo, hi, "dB")
+
+
 def main():
     imu()
     filters()
     emg()
     ppg()
     analyses()
+    theory_pages()
     files()
     print()
     if fails:

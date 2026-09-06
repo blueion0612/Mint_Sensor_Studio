@@ -444,7 +444,11 @@ class SourceDialog(QtWidgets.QDialog):
     needs a file.
     """
 
-    def __init__(self, parent=None, current="SIM", sim_modality="imu"):
+    # the tab order: the cable first, because it is the way in the course uses,
+    # and the radio last, because it is for later in the course
+    TAB = {"USB": 0, "SIM": 1, "FILE": 2, "BLE": 3}
+
+    def __init__(self, parent=None, current="USB", sim_modality="imu"):
         super().__init__(parent)
         self.setWindowTitle("Source")
         self.setMinimumWidth(560)
@@ -454,10 +458,10 @@ class SourceDialog(QtWidgets.QDialog):
 
         self.tabs = QtWidgets.QTabWidget()
         self.tabs.addTab(self._usb_tab(), "USB cable")
-        self.tabs.addTab(self._ble_tab(), "Bluetooth")
         self.tabs.addTab(self._sim_tab(sim_modality), "Simulated")
         self.tabs.addTab(self._file_tab(), "Recording")
-        self.tabs.setCurrentIndex({"USB": 0, "BLE": 1, "SIM": 2, "FILE": 3}.get(current, 2))
+        self.tabs.addTab(self._ble_tab(), "Bluetooth")
+        self.tabs.setCurrentIndex(self.TAB.get(current, 0))
 
         connect = QtWidgets.QPushButton("Connect")
         connect.setObjectName("Primary")
@@ -643,13 +647,13 @@ class SourceDialog(QtWidgets.QDialog):
             self.file_path.setText(path)
 
     def _accept(self):
-        i = self.tabs.currentIndex()
-        if i == 0:
+        kind = {v: k for k, v in self.TAB.items()}[self.tabs.currentIndex()]
+        if kind == "USB":
             self.result_kind, self.result_target = "USB", self.usb_list.currentData() or "auto"
             self.result_kw = dict(expect=self.usb_expect.currentData())
-        elif i == 1:
+        elif kind == "BLE":
             self.result_kind, self.result_target = "BLE", self.ble_list.currentText()
-        elif i == 2:
+        elif kind == "SIM":
             self.result_kind, self.result_target = "SIM", ""
             which = self.sim_kind.currentData()
             if which == "emg":
@@ -886,6 +890,10 @@ class Studio(QtWidgets.QMainWindow):
     # A rectangle standing in for the screen, so that a check can see what a
     # small laptop sees without having one.
     SCREEN_OVERRIDE = None
+    # The cable is the default way in: a board that is plugged in when the
+    # window opens is connected without asking. The checks switch this off so
+    # that a board on the bench cannot take a test away from the simulator.
+    AUTO_CONNECT = True
 
     def __init__(self, entries=None):
         super().__init__()
@@ -895,7 +903,7 @@ class Studio(QtWidgets.QMainWindow):
 
         self.source = None
         self.session = core.Session()
-        self._kind = "SIM"
+        self._kind = "USB"
         self._sim_modality = "imu"
         self.pace = Pace()
         self.recorder = None
@@ -917,6 +925,7 @@ class Studio(QtWidgets.QMainWindow):
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self._frame)
         self.timer.start(self.pace.interval)
+        QtCore.QTimer.singleShot(500, self._auto_connect)
 
     def _free(self):
         """The part of the screen a window may use, or None."""
@@ -986,7 +995,9 @@ class Studio(QtWidgets.QMainWindow):
             mark.setPixmap(pix.scaledToHeight(19, QtCore.Qt.SmoothTransformation))
             bar.addWidget(mark)
             bar.addWidget(self._spacer(12))
-        bar.addWidget(label("MINT Sensor Studio", "Product"))
+        # The program is MINT Sensor Studio; here the lab's wordmark stands
+        # right beside the name, so the label leaves the MINT to the mark.
+        bar.addWidget(label("Sensor Studio", "Product"))
         bar.addWidget(self._spacer(12))
         self.badge = badge("IMU", theme.MODALITY["imu"])
         # A widget on a toolbar is shown and hidden through the action the
@@ -1214,6 +1225,33 @@ class Studio(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self, "Cannot open that source", str(e))
             self.statusBar().showMessage("Not connected.")
             return
+        self._adopt(src)
+
+    def _auto_connect(self):
+        """
+        The wired board is the default. If exactly one is plugged in when the
+        window opens and nothing has been chosen yet, open it. Trouble is one
+        line in the status bar, not a box: nobody asked for this connection.
+        """
+        if not self.AUTO_CONNECT or self.source is not None:
+            return
+        boards = [p for p in sources.list_serial_ports() if p[2]]
+        if len(boards) != 1:
+            return
+        port = boards[0][0]
+        self.statusBar().showMessage("Opening %s..." % port)
+        QtWidgets.QApplication.processEvents()
+        try:
+            src = sources.open_source("USB", port)
+            src.wait(6.0)
+        except Exception as e:                                  # noqa: BLE001
+            self.statusBar().showMessage("%s: %s" % (port, str(e).strip().splitlines()[0]))
+            return
+        self._kind = "USB"
+        self._adopt(src)
+
+    def _adopt(self, src):
+        """Take a source that is open and sending as the window's own."""
         self.source = src
         self.session = core.session_for(src)
         self._seen = 0

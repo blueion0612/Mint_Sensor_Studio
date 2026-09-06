@@ -47,7 +47,9 @@
 
 #define BOARD_REV 2      // 2 = Nano 33 BLE Sense Rev2.  1 = Nano 33 BLE Sense.
 
-#define USE_BLE 1        // 1 = also send over Bluetooth.  0 = cable only.
+#define USE_BLE 0        // 0 = cable only, as shipped.  1 = also send over Bluetooth,
+                         //     which the course turns on later and needs the
+                         //     ArduinoBLE library to compile.
                          //
                          // Measured on the board this was written for:
                          //   cable, USE_BLE 0        96 samples a second

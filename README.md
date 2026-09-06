@@ -47,9 +47,11 @@ assignments, so the window shows the mathematics and not the code.
 | **EMG** | Signals · Envelope · Fatigue | an EMG board |
 | **PPG** | Signals · Heart rate · SpO2 | a pulse oximeter |
 | **Signal processing** | Sampling · Convolution · Periodicity · Spectrum · Spectrogram · Filters · Denoise · Separation | any signal |
+| **Signal theory** | Sampling theorem · Aliasing · Quantization · Fourier synthesis · Spectral leakage | nothing: synthetic signals |
 
 A page for another sensor than the one connected is grayed, with the reason in its
-tooltip. Click a group name to fold or unfold it.
+tooltip. Click a group name to fold or unfold it. The Signal theory pages read no
+sensor, so they work with nothing connected.
 
 ### The pages
 
@@ -71,6 +73,11 @@ tooltip. Click a group name to fold or unfold it.
 | Filters | Butterworth low, high, band, notch; live or zero-phase | y = Σ bᵢ x − Σ aⱼ y |
 | Denoise | moving average, median, exponential, Savitzky–Golay | one line each |
 | Separation | PCA and ICA of the channels | C v = λ v · x = A s |
+| Sampling theorem | samples put back into a signal, and where that fails | x(t) = Σ x[n] sinc(fₛ(t − nTₛ)), fₛ > 2 f_max |
+| Aliasing | a frequency above fₛ/2 coming back lower | f_apparent = \|f − k fₛ\| |
+| Quantization | bits, step size, and the noise they add | SNR ≈ 6.02 N + 1.76 dB |
+| Fourier synthesis | a square, triangle or sawtooth from sinusoids | x = Σ bₖ sin(2πk f t) |
+| Spectral leakage | a tone between bins, and what a window does | X[k] = Σ w[n] x[n] e^(−j2πkn/N) |
 
 The panel along the bottom gives each page's equation, what its symbols are, why
 the page behaves as it does, something to try, and a link to read more.
@@ -83,10 +90,10 @@ the page behaves as it does, something to try, and a link to read more.
 
 | Source | What it is |
 |---|---|
-| **USB cable** | any board on a serial port. Its header line says what it sends |
-| **Bluetooth** | the IMU board with no cable, advertising as `IMU-XXXX` |
+| **USB cable** | any board on a serial port. Its header line says what it sends. A board that is plugged in when the window opens is connected on its own |
 | **Simulated** | a virtual IMU, muscle (one or two, with crosstalk) or fingertip, with its faults on sliders |
 | **Recording** | a CSV played back, at real time or faster, looping if asked |
+| **Bluetooth** | the IMU board with no cable, advertising as `IMU-XXXX`; the sketch ships with the radio off (`USE_BLE 0`) |
 
 Everything derived from a signal is derived once, as it arrives, in the session for
 that sensor: attitude for the IMU, the filtered signal and its envelope for EMG, the
@@ -106,8 +113,9 @@ sensor-studio                 # open the window; --dark opens the dark palette
 ```
 
 `python sensor_studio.py` and `python -m studio` open the same window without the
-console script. Pick a source with **Source…** or Ctrl+K; the simulated sensors need
-nothing plugged in.
+console script. A board plugged in when the window opens is connected on its own;
+otherwise pick a source with **Source…** or Ctrl+K. The simulated sensors and the
+Signal theory pages need nothing plugged in.
 
 ## Usage
 
@@ -152,6 +160,7 @@ studio/
   modality.py           what a channel is, and which sensor a set of channels adds up to
   dsp.py                streaming filters, the envelope, the beat detector, spectra
   analysis.py           autocorrelation, Fourier series, STFT, smoothers, PCA and ICA
+  theory.py             the synthetic-signal arithmetic behind the Signal theory pages
   core.py               the ring buffer, the IMU session and its attitude filter, the estimators
   bio.py                the EMG and PPG sessions
   sources.py            USB, Bluetooth, the three simulators, recordings, the recorder
@@ -183,9 +192,11 @@ installed. The window check opens the real window on each simulated sensor, visi
 every page, works every control, and fails on an exception, a slow frame measured
 twice, or two pieces of text drawn over each other; then it records a few seconds,
 plays them back through the Recording source, opens the dark palette in the smallest
-window the layout is designed for, and opens the window on a screen shorter than
-that layout to see that it scrolls to the bottom panel. CI runs all three, the window
-check off screen.
+window the layout is designed for, opens the window on a screen shorter than that
+layout to see that it scrolls to the bottom panel, and opens it with nothing
+connected to see that every page is offered and the theory pages work in full. The
+math check also holds the theory pages' arithmetic to the textbook figures. CI runs
+all three, the window check off screen.
 
 ## Requirements
 
